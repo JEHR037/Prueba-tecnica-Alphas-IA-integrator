@@ -2,14 +2,12 @@
 Mock de la API de OpenAI para el sistema RAG
 Simula respuestas realistas de OpenAI sin hacer llamadas reales a la API
 """
-
-import json
 import random
 import time
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-import hashlib
-import re
+import sys
+from pathlib import Path
 
 # Añadir el directorio src al path para importaciones
 sys.path.append(str(Path(__file__).parent.parent.parent))

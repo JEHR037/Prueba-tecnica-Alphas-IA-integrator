@@ -4,7 +4,7 @@ Configuración para el sistema RAG de políticas de RRHH de Google
 
 import os
 from typing import Optional
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 class RAGConfig(BaseSettings):
     """Configuración del sistema RAG"""

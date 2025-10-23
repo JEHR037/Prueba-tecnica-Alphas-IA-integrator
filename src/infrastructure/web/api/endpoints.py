@@ -371,47 +371,93 @@ async def delete_document(
 @app.get("/system/info",
          response_model=SystemInfoResponse,
          summary="Información del sistema",
-         description="Obtiene información general del sistema RAG")
-async def get_system_info(
-    service: MainRAGService = Depends(get_main_service)
-) -> SystemInfoResponse:
+         description="Obtiene información general del sistema RAG con datos precargados")
+async def get_system_info() -> SystemInfoResponse:
     """
-    Obtiene información general del sistema
+    Obtiene información general del sistema RAG integrado
     
     Incluye:
-    - Número total de documentos
+    - Número total de documentos (incluyendo precargados)
     - Categorías disponibles
     - Departamentos disponibles
-    - Estado del sistema
+    - Estado del sistema integrado
     """
-    logger.info("Obteniendo información del sistema")
+    logger.info("Obteniendo información del sistema integrado")
     
-    response = await service.get_system_info()
-    
-    logger.info("Información del sistema obtenida exitosamente")
-    return response
+    try:
+        # Obtener servicio integrado
+        integrated_service = await get_integrated_service()
+        
+        # Obtener información del sistema
+        system_info = integrated_service.get_system_info()
+        
+        # Crear respuesta
+        response = SystemInfoResponse(
+            total_documents=integrated_service.get_document_count(),
+            categories=integrated_service.get_categories(),
+            departments=["rrhh", "legal", "it", "finanzas", "marketing", "ventas", "operaciones", "general"],
+            system_status="ready" if system_info["system_ready"] else "initializing"
+        )
+        
+        logger.info("Información del sistema integrado obtenida exitosamente")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo información del sistema: {e}")
+        # Retornar información básica en caso de error
+        return SystemInfoResponse(
+            total_documents=0,
+            categories=[],
+            departments=[],
+            system_status="error"
+        )
 
 @app.get("/system/stats",
          summary="Estadísticas del sistema",
-         description="Obtiene estadísticas de uso del sistema")
-async def get_system_stats(
-    service: MainRAGService = Depends(get_main_service)
-) -> Dict[str, Any]:
+         description="Obtiene estadísticas de uso del sistema RAG integrado")
+async def get_system_stats() -> Dict[str, Any]:
     """
-    Obtiene estadísticas de uso del sistema
+    Obtiene estadísticas de uso del sistema RAG integrado
     
     Incluye:
     - Número de preguntas realizadas
-    - Número de documentos añadidos
-    - Número de búsquedas realizadas
+    - Número de documentos cargados (incluyendo precargados)
+    - Estado de inicialización
     - Tiempo de actividad
     """
-    logger.info("Obteniendo estadísticas del sistema")
+    logger.info("Obteniendo estadísticas del sistema integrado")
     
-    stats = service.get_stats()
-    
-    logger.info("Estadísticas obtenidas exitosamente")
-    return stats
+    try:
+        # Obtener servicio integrado
+        integrated_service = await get_integrated_service()
+        
+        # Obtener información del sistema
+        system_info = integrated_service.get_system_info()
+        stats = system_info.get("statistics", {})
+        
+        # Formatear estadísticas
+        formatted_stats = {
+            "system_ready": system_info.get("system_ready", False),
+            "initialized": system_info.get("initialized", False),
+            "documents_loaded": stats.get("documents_loaded", 0),
+            "queries_processed": stats.get("queries_processed", 0),
+            "initialization_time": stats.get("initialization_time"),
+            "last_query_time": stats.get("last_query_time"),
+            "database_path": system_info.get("database_path"),
+            "embedding_model": system_info.get("embedding_model"),
+            "data_loader_available": system_info.get("data_loader_available", False)
+        }
+        
+        logger.info("Estadísticas del sistema integrado obtenidas exitosamente")
+        return formatted_stats
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas: {e}")
+        return {
+            "system_ready": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 @app.get("/departments",
          response_model=List[str],
@@ -470,18 +516,54 @@ async def health_check() -> Dict[str, Any]:
 
 @app.get("/",
          summary="Información de la API",
-         description="Información básica de la API")
+         description="Información básica de la API RAG con datos precargados")
 async def root() -> Dict[str, Any]:
     """
-    Endpoint raíz con información básica de la API
+    Endpoint raíz con información básica de la API RAG integrada
     """
-    return {
-        "message": "Sistema RAG para Políticas de RRHH",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "health": "/health",
-        "main_endpoint": "/ask"
-    }
+    try:
+        # Obtener información del sistema integrado
+        integrated_service = await get_integrated_service()
+        system_info = integrated_service.get_system_info()
+        
+        return {
+            "message": "🔥 Sistema RAG para Políticas de RRHH con Datos Precargados",
+            "version": "2.0.0",
+            "status": "ready" if system_info.get("system_ready", False) else "initializing",
+            "features": [
+                "Datos precargados de políticas de RRHH",
+                "Sistema de embeddings optimizado",
+                "Búsqueda semántica avanzada",
+                "Respuestas contextuales mejoradas",
+                "Filtrado por departamento y categoría"
+            ],
+            "endpoints": {
+                "main": "/ask",
+                "docs": "/docs",
+                "health": "/health",
+                "system_info": "/system/info",
+                "system_stats": "/system/stats",
+                "integrated_status": "/system/integrated/status"
+            },
+            "data_info": {
+                "documents_loaded": system_info.get("statistics", {}).get("documents_loaded", 0),
+                "system_initialized": system_info.get("initialized", False),
+                "data_loader_available": system_info.get("data_loader_available", False)
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        # Información básica en caso de error
+        return {
+            "message": "Sistema RAG para Políticas de RRHH",
+            "version": "2.0.0",
+            "status": "error",
+            "error": str(e),
+            "docs": "/docs",
+            "health": "/health",
+            "main_endpoint": "/ask",
+            "timestamp": datetime.now().isoformat()
+        }
 
 # ============================================================================
 # FUNCIÓN PARA EJECUTAR LA APLICACIÓN

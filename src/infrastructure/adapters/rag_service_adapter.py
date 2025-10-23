@@ -59,53 +59,20 @@ class RAGServiceAdapter(RAGService):
     
     def search_documents(self, query: str, top_k: int = 5, 
                         category: Optional[str] = None) -> List[SearchResult]:
-        """Busca documentos relevantes para una consulta"""
+        """Busca documentos relevantes delegando en RAGServiceImpl"""
         try:
             if not query or not query.strip():
                 raise InvalidQueryError("La consulta de búsqueda no puede estar vacía")
-            
             if top_k < 1 or top_k > 50:
                 raise InvalidQueryError("top_k debe estar entre 1 y 50")
-            
-            # Usar el método de búsqueda del sistema RAG existente
-            similar_docs = self.rag_system.search_similar(
+
+            results = self.rag_system.search_documents(
                 query=query.strip(),
                 top_k=top_k,
                 category=category
             )
-            
-            # Convertir a entidades de dominio
-            search_results = []
-            for doc_data in similar_docs:
-                # Crear entidad Document
-                document = Document(
-                    id=doc_data['document_id'],
-                    title=doc_data['title'],
-                    content="",  # No necesitamos el contenido completo aquí
-                    category=doc_data['category'],
-                    metadata=doc_data['metadata']
-                )
-                
-                # Crear entidad DocumentChunk
-                chunk = DocumentChunk(
-                    document_id=doc_data['document_id'],
-                    chunk_text=doc_data['chunk_text'],
-                    chunk_index=doc_data['chunk_index'],
-                    similarity_score=doc_data['similarity']
-                )
-                
-                # Crear SearchResult
-                search_result = SearchResult(
-                    document=document,
-                    chunk=chunk,
-                    relevance_score=doc_data['similarity']
-                )
-                
-                search_results.append(search_result)
-            
-            self.logger.info(f"Encontrados {len(search_results)} documentos para la consulta")
-            return search_results
-            
+            self.logger.info(f"Encontrados {len(results)} documentos para la consulta")
+            return results
         except Exception as e:
             self.logger.error(f"Error en búsqueda de documentos: {e}")
             if isinstance(e, (InvalidQueryError, RAGDomainException)):
@@ -113,32 +80,11 @@ class RAGServiceAdapter(RAGService):
             raise VectorSearchError(f"Error en búsqueda: {str(e)}")
     
     def generate_response(self, query: str, use_ai: bool = True) -> RAGResponse:
-        """Genera una respuesta completa usando RAG"""
+        """Genera una respuesta completa delegando en RAGServiceImpl"""
         try:
             if not query or not query.strip():
                 raise InvalidQueryError("La consulta no puede estar vacía")
-            
-            # Usar el método de generación de respuesta del sistema RAG existente
-            response_data = self.rag_system.generate_rag_response(
-                query=query.strip(),
-                use_openai=use_ai
-            )
-            
-            # Buscar documentos para obtener SearchResults
-            search_results = self.search_documents(query, top_k=5)
-            
-            # Crear RAGResponse
-            rag_response = RAGResponse(
-                answer=response_data['answer'],
-                sources=search_results,
-                confidence=response_data['confidence'],
-                query=query.strip(),
-                timestamp=datetime.now()
-            )
-            
-            self.logger.info(f"Respuesta generada con confianza: {response_data['confidence']:.2f}")
-            return rag_response
-            
+            return self.rag_system.generate_response(query.strip(), use_ai=use_ai)
         except Exception as e:
             self.logger.error(f"Error generando respuesta: {e}")
             if isinstance(e, (InvalidQueryError, RAGDomainException)):

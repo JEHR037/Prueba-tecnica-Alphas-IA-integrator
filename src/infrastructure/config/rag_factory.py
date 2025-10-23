@@ -3,7 +3,7 @@ Factory para crear instancias del sistema RAG con todas sus dependencias
 """
 
 import os
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import sys
 from pathlib import Path
 
@@ -15,9 +15,12 @@ from infrastructure.adapters.sqlite_document_repository import SQLiteDocumentRep
 from infrastructure.adapters.sqlite_vector_repository import SQLiteVectorRepository
 from infrastructure.adapters.sentence_transformer_service import SentenceTransformerService
 from infrastructure.adapters.text_processor_service import BasicTextProcessor
-from infrastructure.adapters.openai_client_service import OpenAIClientService
 from application.use_cases.rag_service_impl import RAGServiceImpl
 from infrastructure.config.rag_config import rag_config
+
+if TYPE_CHECKING:
+    # Solo para type checking; import perezoso en runtime
+    from infrastructure.adapters.openai_client_service import OpenAIClientService  # type: ignore
 
 class RAGFactory:
     """Factory para crear instancias del sistema RAG"""
@@ -55,10 +58,11 @@ class RAGFactory:
         embedding_service = SentenceTransformerService(embedding_model)
         text_processor = BasicTextProcessor()
         
-        # Crear cliente OpenAI si se especifica
+        # Crear cliente OpenAI si se especifica (import perezoso para evitar dependencia de tiktoken)
         openai_client = None
         if use_openai and openai_api_key:
             try:
+                from infrastructure.adapters.openai_client_service import OpenAIClientService  # type: ignore
                 openai_client = OpenAIClientService(openai_api_key)
             except Exception as e:
                 print(f"Warning: No se pudo inicializar OpenAI client: {e}")
@@ -96,7 +100,7 @@ class RAGFactory:
         return BasicTextProcessor()
     
     @staticmethod
-    def create_openai_client(api_key: str = None, model: str = "gpt-3.5-turbo") -> OpenAIClientService:
+    def create_openai_client(api_key: str = None, model: str = "gpt-3.5-turbo") -> "OpenAIClientService":
         """Crea solo el cliente de OpenAI"""
         api_key = api_key or rag_config.openai_api_key or os.getenv("OPENAI_API_KEY")
         return OpenAIClientService(api_key, model)
